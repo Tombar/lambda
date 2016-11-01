@@ -6,6 +6,29 @@ var s3 = new AWS.S3();
 
 var CONFIG = require("./config.json");
 
+function biggerSizes(sizes, howBig) {
+  if(howBig === undefined) {
+    howBig = 2;
+  }
+  var newSizes = {};
+  sizes.forEach(function(size){
+    var data = size.match(/\d+/g);
+
+    if(data && data.length > 0){
+      var newData = {};
+      data.forEach(function(size) {
+        newData[size] = parseInt(size) * howBig;
+      });
+
+      for(var k in newData) {
+        var oldVal = new RegExp(k, 'g');
+        newSizes[size] = size.replace(oldVal, newData[k]);
+      }
+    }
+  });
+  return newSizes;
+}
+
 function getImageType(objectContentType) {
 	if (objectContentType === "image/jpeg") {
 		return "jpeg";
@@ -52,9 +75,12 @@ exports.handler = function(event, context) {
 		} else {
 			var resizePairs = cross(CONFIG.sizes, images);
 			async.eachLimit(resizePairs, CONFIG.concurrency, function(resizePair, cb) {
+			    var bSizes = biggerSizes(CONFIG.sizes);
 				var config = resizePair[0];
+				var bSize = bSizes[config];
 				var image = resizePair[1];
-				im(image.buffer).resize(config).toBuffer(image.imageType, function(err, buffer) {
+
+				im(image.buffer).resize(bSize).toBuffer(image.imageType, function(err, buffer) {
 					if (err) {
 						cb(err);
 					} else {
